@@ -9,6 +9,8 @@ require 'action_controller'
 
 require 'rspec/rails'
 
+require 'rails/all'
+
 require 'rspec-parameterized'
 
 RSpec.configure do |config|
