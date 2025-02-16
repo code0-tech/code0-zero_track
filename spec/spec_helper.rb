@@ -10,6 +10,7 @@ require 'action_controller'
 require 'rspec/rails'
 
 require 'rails/all'
+require 'support/application'
 
 require 'rspec-parameterized'
 
