@@ -21,9 +21,12 @@ Gem::Specification.new do |spec|
   end
 
   spec.add_dependency 'rails', '>= 8.0.1'
+  spec.add_dependency 'railties', '>= 8.0.1'
+  spec.add_dependency 'zeitwerk', '~> 2.7'
 
   spec.add_development_dependency 'rake', '~> 13.0'
   spec.add_development_dependency 'rspec', '~> 3.0'
+  spec.add_development_dependency 'rspec-parameterized', '~> 1.0'
   spec.add_development_dependency 'rspec-rails', '~> 7.0'
   spec.add_development_dependency 'rubocop-rails', '~> 2.19'
   spec.add_development_dependency 'rubocop-rake', '~> 0.7.0'

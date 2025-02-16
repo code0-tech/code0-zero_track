@@ -1,11 +1,15 @@
 # frozen_string_literal: true
 
+require 'code0/zero_track'
+
 # these requires are necessary because without them, requiring rspec/rails fails
 require 'action_view'
 require 'action_dispatch'
 require 'action_controller'
 
 require 'rspec/rails'
+
+require 'rspec-parameterized'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
