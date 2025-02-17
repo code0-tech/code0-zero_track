@@ -15,13 +15,13 @@ Gem::Specification.new do |spec|
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = spec.homepage
   spec.metadata['changelog_uri'] = "#{spec.homepage}/releases"
+  spec.metadata['rubygems_mfa_required'] = 'true'
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     Dir['{app,config,db,lib}/**/*', 'LICENSE', 'Rakefile', 'README.md']
   end
 
   spec.add_dependency 'rails', '>= 8.0.1'
-  spec.add_dependency 'railties', '>= 8.0.1'
   spec.add_dependency 'zeitwerk', '~> 2.7'
 
   spec.add_development_dependency 'rake', '~> 13.0'
@@ -32,5 +32,4 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rubocop-rake', '~> 0.7.0'
   spec.add_development_dependency 'rubocop-rspec', '~> 3.0'
   spec.add_development_dependency 'rubocop-rspec_rails', '~> 2.30'
-  spec.metadata['rubygems_mfa_required'] = 'true'
 end
