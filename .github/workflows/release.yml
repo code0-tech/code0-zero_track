@@ -24,7 +24,7 @@ jobs:
       - name: Install gems
         run: bundle install
       - name: Set version
-        run: sed -i "s/VERSION = \"0.0.0\"/VERSION = \"${{ github.ref_name }}\"/" lib/code0/zero_track/version.rb && bundle
+        run: sed -i "s/VERSION = '0.0.0'/VERSION = '${{ github.ref_name }}'/" lib/code0/zero_track/version.rb && bundle
 
       # Release
       - uses: rubygems/configure-rubygems-credentials@v1.0.0
