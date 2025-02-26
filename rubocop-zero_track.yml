@@ -1,0 +1,17 @@
+require:
+  - ./lib/rubocop/zero_track
+
+Code0/ZeroTrack/Logs/RailsLogger:
+  Enabled: false
+
+Code0/ZeroTrack/Migration/CreateTableWithTimestamps:
+  Enabled: false
+
+Code0/ZeroTrack/Migration/Datetime:
+  Enabled: false
+
+Code0/ZeroTrack/Migration/Timestamps:
+  Enabled: false
+
+Code0/ZeroTrack/Migration/VersionedClass:
+  Enabled: false
