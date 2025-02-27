@@ -17,7 +17,7 @@ require 'rspec-parameterized'
 require 'rubocop'
 require 'rubocop/rspec/support'
 
-require 'rubocop/zero_track' # our entrypoint
+require 'code0/zero_track/../../../rubocop/zero_track'
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
