@@ -1,5 +1,5 @@
 require:
-  - ./lib/rubocop/zero_track
+  - ./zero_track
 
 Code0/ZeroTrack/Logs/RailsLogger:
   Enabled: false
