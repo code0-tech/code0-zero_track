@@ -29,11 +29,27 @@ module Code0
           message.strip
         end
 
+        class NoOpTagStack
+          include Singleton
+
+          def push_tags(*)
+            []
+          end
+
+          def pop_tags(*); end
+
+          def clear; end
+
+          def format_message(message)
+            message
+          end
+        end
+
         class Tagged < JsonFormatter
           include ActiveSupport::TaggedLogging::Formatter
 
-          def tagged(*_args)
-            yield self # Ignore tags, they break the json layout as they are prepended to the log line
+          def tag_stack
+            NoOpTagStack.instance
           end
         end
       end
