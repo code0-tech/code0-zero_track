@@ -21,7 +21,7 @@ Gem::Specification.new do |spec|
     Dir['{app,config,db,lib,rubocop}/**/*', 'LICENSE', 'Rakefile', 'README.md']
   end
 
-  spec.add_dependency 'rails', '>= 8.0.1'
+  spec.add_dependency 'rails', ENV.fetch('RAILS_VERSION', '>= 8.0.1')
   spec.add_dependency 'zeitwerk', '~> 2.7'
 
   spec.add_development_dependency 'rake', '~> 13.0'

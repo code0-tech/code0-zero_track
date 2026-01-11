@@ -16,7 +16,7 @@ module Code0
 
       config.after_initialize do
         Injectors::ActiveRecordTimestamps.inject! if config.zero_track.active_record.timestamps
-        Injectors::ActiveRecordSchemaMigrations.inject! if config.zero_track.active_record.schema_migrations
+        Injectors::ActiveRecordSchemaMigrations.inject!(config) if config.zero_track.active_record.schema_migrations
       end
     end
   end
