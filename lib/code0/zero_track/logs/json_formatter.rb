@@ -43,6 +43,10 @@ module Code0
           def format_message(message)
             message
           end
+
+          def tags
+            []
+          end
         end
 
         class Tagged < JsonFormatter
