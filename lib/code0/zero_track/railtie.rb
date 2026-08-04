@@ -4,10 +4,15 @@ module Code0
   module ZeroTrack
     class Railtie < ::Rails::Railtie
       config.zero_track = ActiveSupport::OrderedOptions.new
+
       config.zero_track.active_record = ActiveSupport::OrderedOptions.new
       config.zero_track.active_record.timestamps = false
       config.zero_track.active_record.schema_migrations = false
       config.zero_track.active_record.schema_cleaner = false
+
+      config.zero_track.db_partitioning = ActiveSupport::OrderedOptions.new
+      config.zero_track.db_partitioning.dynamic_partition_schema = 'partitions_dynamic'
+      config.zero_track.db_partitioning.base_ar_class = 'ActiveRecord::Base'
 
       rake_tasks do
         path = File.expand_path(__dir__)

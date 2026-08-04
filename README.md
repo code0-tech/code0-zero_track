@@ -66,3 +66,130 @@ can be filled with the correct entries when the schema is loaded from the schema
 This approach is prone to git conflicts, so you can switch to a file based persistence
 with `config.zero_track.active_record.schema_migrations = true`. Instead of an `INSERT INTO` in
 the `db/structure.sql`, this mode creates files in the `db/schema_migrations` directory.
+
+### Table Partitioning
+
+PostgreSQL supports declarative table partitioning. The partition manager automates the
+management of partitions without manual operations or extensions on the PostgreSQL server.
+
+#### Configuration
+
+```ruby
+config.zero_track.db_partitioning.dynamic_partition_schema = 'partitions_dynamic' # default
+config.zero_track.db_partitioning.base_ar_class = 'ActiveRecord::Base' # default
+```
+
+- `dynamic_partition_schema`: The PostgreSQL schema where dynamic partitions are stored.
+- `base_ar_class`: The ActiveRecord base class used for the internal partitioning models.
+
+#### Migration Helpers
+
+Include the migration helpers by inheriting from `Code0::ZeroTrack::Database::Migration[1.0]` (or the
+appropriate version). The following methods become available:
+
+`create_partition_by_date_table(table_name, partition_column:, **options, &block)` creates a table
+partitioned by range on the given column. It automatically sets up a composite primary key
+of `(id, partition_column)`.
+
+`create_dynamic_partition_schema` / `drop_dynamic_partition_schema` creates or drops the schema
+used for storing dynamic partitions.
+
+`create_partitioning_views` / `drop_partitioning_views` creates or drops the PostgreSQL views
+(`postgres_partitioned_tables`, `postgres_partitions`, `postgres_detached_partitions`) that the
+partition manager uses to inspect existing partitions.
+
+Example migration:
+
+```ruby
+class CreatePartitionedEvents < Code0::ZeroTrack::Database::Migration[1.0]
+  def change
+    create_dynamic_partition_schema
+    create_partitioning_views
+
+    create_partition_by_date_table :events, partition_column: :created_at do |t|
+      t.text :name, null: false
+      t.timestamps_with_timezone null: false
+    end
+  end
+end
+```
+
+The schema and views only need to be created once before creating the first partitioned table.
+
+Tables don't necessarily have to be created with the provided helper. The partition manager will
+work as long as the model is correctly configured.
+
+#### Defining a Partitioned Model
+
+Include `Code0::ZeroTrack::Database::Partitioning::PartitionedTable` in your model and declare
+the partitioning strategy:
+
+```ruby
+class Event < ApplicationRecord
+  include Code0::ZeroTrack::Database::Partitioning::PartitionedTable
+
+  partition_by :created_at, strategy: :monthly, retain_for: 12.months
+end
+```
+
+Available strategies: `:daily` and `:monthly`.
+
+Options passed to `partition_by`:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `strategy` | `:daily` or `:monthly` | *required* |
+| `headroom` | How far ahead to pre-create partitions | 30 days (daily) / 6 months (monthly) |
+| `retain_for` | How long to keep partitions before detaching (enables retention) | `nil` (disabled) |
+| `retain_detached_for` | How long to keep detached partitions before dropping | 7 days |
+
+#### Partition Manager
+
+Register models for automatic partition management:
+
+```ruby
+Code0::ZeroTrack::Database::Partitioning::PartitionManager.register_model(Event)
+Code0::ZeroTrack::Database::Partitioning::PartitionManager.register_model(EventDetail)
+```
+
+Then synchronize all registered models. The gem won't run this for you.
+Call it from a cron job, Sidekiq scheduler, or deploy script:
+
+```ruby
+Code0::ZeroTrack::Database::Partitioning::PartitionManager.sync_all_partitions!
+```
+
+Or manage a single model:
+
+```ruby
+manager = Code0::ZeroTrack::Database::Partitioning::PartitionManager.new(Event)
+manager.sync_partitions!
+```
+
+`sync_all_partitions!` first creates partitions for all registered models, then detaches and drops
+partitions for all models in reverse registration order.
+
+`sync_partitions!` performs three operations in order for a single model:
+1. Create and attach new partitions to cover the desired range (up to the configured headroom).
+2. Detach partitions that fall outside the desired range (when retention is enabled).
+3. Drop detached partitions that have been detached longer than `retain_detached_for`.
+
+If needed, the three phases can be called individually with `create_partitions!`, `detach_partitions!`
+and `drop_partitions!`. This only works on a partition manager for a specific model. There is no
+shortcut to run this on all registered models like the `sync_all_partitions!` method.
+
+Each table gets a PostgreSQL advisory lock, so concurrent calls won't conflict.
+
+When tables have foreign key relationships, registration order and retention configuration matter:
+
+- Register parent tables before child tables. `sync_all_partitions!` creates partitions in
+  registration order and detaches/drops them in reverse order. This way the parent tables
+  are created before the children and dropped after their children.
+- A child table's `retain_for` must be less than or equal to the parent table's `retain_for`.
+  If a child retains partitions longer than its parent, dropping the parent partition will
+  fail because the child's foreign key still references it.
+
+#### Schema Cleaner Integration
+
+Dynamic partition tables are automatically removed from `db/structure.sql` if the
+[schema cleaner](#configzero_trackactive_recordschema_cleaner) is enabled.
