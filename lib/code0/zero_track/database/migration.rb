@@ -11,6 +11,7 @@ module Code0
           include Database::MigrationHelpers::IndexHelpers
           include Database::MigrationHelpers::RemoveColumnEnhancements
           include Database::MigrationHelpers::TableEnhancements
+          include Database::MigrationHelpers::TablePartitioning
         end
         # rubocop:enable Naming/ClassAndModuleCamelCase
 
