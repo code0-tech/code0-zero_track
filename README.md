@@ -87,9 +87,10 @@ config.zero_track.db_partitioning.base_ar_class = 'ActiveRecord::Base' # default
 Include the migration helpers by inheriting from `Code0::ZeroTrack::Database::Migration[1.0]` (or the
 appropriate version). The following methods become available:
 
-`create_partition_by_date_table(table_name, partition_column:, **options, &block)` creates a table
-partitioned by range on the given column. It automatically sets up a composite primary key
-of `(id, partition_column)`.
+`create_partition_by_date_table(table_name, partition_column:, primary_key: nil, **options, &block)` creates a table
+partitioned by range on the given column. By default, it adds a `bigserial` id column and sets up a composite
+primary key of `(id, partition_column)`. If `primary_key` is provided (e.g. `primary_key: %i[date other_column]`),
+the id column is omitted and the given columns are used as the primary key instead.
 
 `create_dynamic_partition_schema` / `drop_dynamic_partition_schema` creates or drops the schema
 used for storing dynamic partitions.
