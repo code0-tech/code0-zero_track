@@ -5,21 +5,23 @@ module Code0
     module Database
       module MigrationHelpers
         module TablePartitioning
-          def create_partition_by_date_table(table_name, partition_column:, **options, &block)
+          def create_partition_by_date_table(table_name, partition_column:, primary_key: nil, **options, &block)
             options[:options] = "PARTITION BY RANGE (#{quote_column_name(partition_column)})"
             options[:id] = false
 
             create_table(table_name, **options) do |t|
-              t.bigserial :id, null: false
+              t.bigserial :id, null: false unless primary_key
 
               block.call(t)
             end
+
+            pk_columns = primary_key || [:id, partition_column]
 
             reversible do |dir|
               dir.up do
                 execute <<~SQL.squish
                   ALTER TABLE #{quote_table_name(table_name)}
-                  ADD PRIMARY KEY (#{quote_column_name(:id)}, #{quote_column_name(partition_column)})
+                  ADD PRIMARY KEY (#{pk_columns.map { |c| quote_column_name(c) }.join(', ')})
                 SQL
               end
             end
