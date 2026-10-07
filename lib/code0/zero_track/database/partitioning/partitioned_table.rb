@@ -25,6 +25,16 @@ module Code0
 
               @partitioning_strategy = strategy_class.new(self, column, **kwargs)
             end
+
+            def drop_foreign_keys_on_detach(*constraint_names)
+              @foreign_keys_to_drop_on_detach ||= []
+              @foreign_keys_to_drop_on_detach.concat(constraint_names.flatten.map(&:to_s))
+              @foreign_keys_to_drop_on_detach
+            end
+
+            def foreign_keys_to_drop_on_detach
+              @foreign_keys_to_drop_on_detach || []
+            end
           end
         end
       end

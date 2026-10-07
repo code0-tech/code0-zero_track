@@ -64,6 +64,8 @@ module Code0
               model.partitioning_strategy.partitions_to_detach.each do |partition|
                 detach_partition(partition, connection)
               end
+
+              drop_declared_foreign_keys_from_detached_partitions(connection)
             end
           end
 
@@ -107,6 +109,73 @@ module Code0
               table_name: partition.model.table_name,
               partition_name: partition.partition_name
             )
+          end
+
+          def drop_declared_foreign_keys_from_detached_partitions(connection)
+            constraint_names = model.foreign_keys_to_drop_on_detach || []
+            return if constraint_names.empty?
+
+            warn_about_unknown_foreign_keys(constraint_names, connection)
+
+            detached_foreign_keys(constraint_names, connection).each do |qualified_table, constraint_name|
+              connection.execute(
+                "ALTER TABLE #{qualified_table} " \
+                "DROP CONSTRAINT #{connection.quote_column_name(constraint_name)}"
+              )
+
+              logger.info(
+                message: 'Dropped foreign key from detached partition',
+                table_name: model.table_name,
+                partition_name: qualified_table,
+                constraint_name: constraint_name
+              )
+            end
+          end
+
+          # We check the parent table because we drop the FK from the partition
+          # when detaching. A missing FK on the detached partition is an expected state
+          def warn_about_unknown_foreign_keys(constraint_names, connection)
+            existing = parent_foreign_key_names(connection)
+            unknown = constraint_names - existing
+            return if unknown.empty?
+
+            logger.warn(
+              message: 'Configured foreign keys to drop on detach do not exist on the partitioned table',
+              table_name: model.table_name,
+              constraint_names: unknown
+            )
+          end
+
+          def parent_foreign_key_names(connection)
+            connection.select_values(<<~SQL.squish)
+              SELECT con.conname
+              FROM pg_catalog.pg_constraint con
+              WHERE con.contype = 'f'
+                AND con.conrelid = #{connection.quote(model.table_name)}::regclass
+            SQL
+          end
+
+          def detached_foreign_keys(constraint_names, connection)
+            schema = Rails.application.config.zero_track.db_partitioning.dynamic_partition_schema
+            quoted_names = constraint_names.map { |name| connection.quote(name) }.join(', ')
+
+            rows = connection.select_rows(<<~SQL.squish)
+              SELECT (quote_ident(n.nspname) || '.' || quote_ident(c.relname)) AS qualified_table,
+                     con.conname AS constraint_name
+              FROM pg_catalog.pg_constraint con
+              JOIN pg_catalog.pg_class c ON c.oid = con.conrelid
+              JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+              WHERE con.contype = 'f'
+                AND con.conname IN (#{quoted_names})
+                AND n.nspname = #{connection.quote(schema)}
+                AND c.relkind = 'r'
+                AND NOT c.relispartition
+                AND NOT EXISTS (
+                  SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhrelid = c.oid
+                )
+            SQL
+
+            rows.map { |qualified_table, constraint_name| [qualified_table, constraint_name] }
           end
 
           def drop_partition(detached_partition, connection)
