@@ -61,5 +61,30 @@ RSpec.describe Code0::ZeroTrack::Database::Partitioning::PartitionedTable do
       end.to raise_error(ArgumentError, /already partitioned/)
     end
   end
+
+  describe '.drop_foreign_keys_on_detach' do
+    it 'defaults to an empty list' do
+      expect(test_class.foreign_keys_to_drop_on_detach).to eq([])
+    end
+
+    it 'records declared constraint names as strings' do
+      test_class.drop_foreign_keys_on_detach(:fk_a, 'fk_b')
+
+      expect(test_class.foreign_keys_to_drop_on_detach).to eq(%w[fk_a fk_b])
+    end
+
+    it 'accumulates across multiple declarations' do
+      test_class.drop_foreign_keys_on_detach(:fk_a)
+      test_class.drop_foreign_keys_on_detach(:fk_b, :fk_c)
+
+      expect(test_class.foreign_keys_to_drop_on_detach).to eq(%w[fk_a fk_b fk_c])
+    end
+
+    it 'flattens an array argument' do
+      test_class.drop_foreign_keys_on_detach(%i[fk_a fk_b])
+
+      expect(test_class.foreign_keys_to_drop_on_detach).to eq(%w[fk_a fk_b])
+    end
+  end
 end
 # rubocop:enable RSpec/VerifiedDoubles

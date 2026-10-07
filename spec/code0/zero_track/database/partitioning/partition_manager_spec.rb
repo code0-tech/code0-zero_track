@@ -9,19 +9,26 @@ RSpec.describe Code0::ZeroTrack::Database::Partitioning::PartitionManager do
   let(:model) do
     model = double('Model', table_name: 'events') # rubocop:disable RSpec/VerifiedDoubles
     allow(model).to receive(:try).with(:partitioning_strategy).and_return(partitioning_strategy)
-    allow(model).to receive(:partitioning_strategy).and_return(partitioning_strategy)
+    allow(model).to receive_messages(
+      partitioning_strategy: partitioning_strategy,
+      foreign_keys_to_drop_on_detach: foreign_keys_to_drop_on_detach
+    )
     allow(model).to receive(:with_connection).and_yield(connection)
     model
   end
 
   let(:partitioning_strategy) { double('Strategy') }
 
+  let(:foreign_keys_to_drop_on_detach) { [] }
+
   let(:connection) do
     connection = double('Connection')
     allow(connection).to receive(:execute)
     allow(connection).to receive(:transaction).and_yield
     allow(connection).to receive(:quote_table_name) { |name| "\"#{name}\"" }
+    allow(connection).to receive(:quote_column_name) { |name| "\"#{name}\"" }
     allow(connection).to receive(:quote) { |value| "'#{value}'" }
+    allow(connection).to receive_messages(select_rows: [], select_values: [])
     connection
   end
 
@@ -171,6 +178,105 @@ RSpec.describe Code0::ZeroTrack::Database::Partitioning::PartitionManager do
       manager.detach_partitions!
 
       expect(connection).not_to have_received(:execute).with(a_string_matching(/DETACH/))
+    end
+
+    context 'when the model declares foreign keys to drop on detach' do
+      let(:foreign_keys_to_drop_on_detach) { %w[fk_events_parent fk_events_other] }
+
+      let(:partition) do
+        Code0::ZeroTrack::Database::Partitioning::TimePartition.new(
+          model, '2023-01-01', '2023-02-01', partition_name: 'events_202301'
+        )
+      end
+
+      before do
+        allow(partitioning_strategy).to receive(:partitions_to_detach).and_return([partition])
+      end
+
+      it 'drops the declared foreign keys found on detached partitions' do
+        allow(connection).to receive(:select_rows).and_return(
+          [['"partitions_dynamic"."events_202301"', 'fk_events_parent']]
+        )
+
+        described_class.new(model).detach_partitions!
+
+        expect(connection).to have_received(:execute).with(
+          a_string_matching(
+            /ALTER TABLE "partitions_dynamic"."events_202301" DROP CONSTRAINT "fk_events_parent"/
+          )
+        )
+      end
+
+      it 'reconciles every detached partition, not only the one detached in this run' do
+        # Two already-detached partitions still carry the inherited foreign key.
+        allow(connection).to receive(:select_rows).and_return(
+          [
+            ['"partitions_dynamic"."events_202301"', 'fk_events_parent'],
+            ['"partitions_dynamic"."events_202212"', 'fk_events_parent']
+          ]
+        )
+
+        described_class.new(model).detach_partitions!
+
+        expect(connection).to have_received(:execute).with(
+          a_string_matching(/"partitions_dynamic"."events_202301" DROP CONSTRAINT "fk_events_parent"/)
+        )
+        expect(connection).to have_received(:execute).with(
+          a_string_matching(/"partitions_dynamic"."events_202212" DROP CONSTRAINT "fk_events_parent"/)
+        )
+      end
+
+      it 'scopes the catalog lookup to the declared constraint names and dynamic schema' do
+        described_class.new(model).detach_partitions!
+
+        expect(connection).to have_received(:select_rows).with(
+          a_string_matching(/pg_catalog\.pg_constraint.*contype = 'f'/m)
+        )
+        expect(connection).to have_received(:select_rows).with(
+          a_string_matching(/'fk_events_parent', 'fk_events_other'/)
+        )
+        expect(connection).to have_received(:select_rows).with(
+          a_string_matching(/'partitions_dynamic'/)
+        )
+      end
+
+      it 'does not attempt to drop anything when the catalog reports no matching foreign keys' do
+        allow(connection).to receive(:select_rows).and_return([])
+
+        described_class.new(model).detach_partitions!
+
+        expect(connection).not_to have_received(:execute).with(a_string_matching(/DROP CONSTRAINT/))
+      end
+
+      it 'skips the catalog lookup entirely when no foreign keys are declared' do
+        allow(model).to receive(:foreign_keys_to_drop_on_detach).and_return([])
+
+        described_class.new(model).detach_partitions!
+
+        expect(connection).not_to have_received(:select_rows)
+      end
+
+      it 'warns about declared foreign keys missing from the partitioned parent table' do
+        allow(connection).to receive(:select_values).and_return(%w[fk_events_parent])
+
+        described_class.new(model).detach_partitions!
+
+        expect(rails_logger).to have_received(:warn).with(
+          hash_including(
+            message: /do not exist on the partitioned table/,
+            table_name: 'events',
+            constraint_names: %w[fk_events_other]
+          )
+        )
+      end
+
+      it 'does not warn when all declared foreign keys exist on the partitioned parent table' do
+        allow(connection).to receive(:select_values).and_return(%w[fk_events_parent fk_events_other])
+
+        described_class.new(model).detach_partitions!
+
+        expect(rails_logger).not_to have_received(:warn)
+      end
     end
   end
 

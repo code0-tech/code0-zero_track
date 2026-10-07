@@ -189,6 +189,9 @@ When tables have foreign key relationships, registration order and retention con
 - A child table's `retain_for` must be less than or equal to the parent table's `retain_for`.
   If a child retains partitions longer than its parent, dropping the parent partition will
   fail because the child's foreign key still references it.
+- Foreign keys between the partitioned tables must be declared with `drop_foreign_keys_on_detach`
+  on the model. Otherwise, the foreign key of a detached partition will block detaching partitions
+  of the referenced table.
 
 #### Schema Cleaner Integration
 
