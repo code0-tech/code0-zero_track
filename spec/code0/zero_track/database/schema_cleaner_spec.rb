@@ -120,6 +120,10 @@ RSpec.describe Code0::ZeroTrack::Database::SchemaCleaner do
           ALTER TABLE ONLY users
               ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
+          COMMENT ON TABLE partitions_dynamic."p_audit_events_202606" IS '{"table":"p_audit_events","detached_at":"2026-10-17T15:32:48Z"}';
+
+          COMMENT ON TABLE "p_audit_events" IS 'partitioned table';
+
           CREATE INDEX index_p_audit_events_on_author_id ON ONLY p_audit_events USING btree (author_id);
 
           CREATE INDEX p_audit_events_202607_author_id_idx ON partitions_dynamic.p_audit_events_202607 USING btree (author_id);
@@ -192,6 +196,14 @@ RSpec.describe Code0::ZeroTrack::Database::SchemaCleaner do
 
       it 'preserves foreign keys on the parent table' do
         expect(clean).to include('fk_rails_9c5a4c4493 FOREIGN KEY (author_id) REFERENCES users(id)')
+      end
+
+      it 'removes comments from dynamic partitions' do
+        expect(clean).not_to include('COMMENT ON TABLE partitions_dynamic."p_audit_events_202606"')
+      end
+
+      it 'preserves comment on the parent table' do
+        expect(clean).to include('COMMENT ON TABLE "p_audit_events"')
       end
     end
 

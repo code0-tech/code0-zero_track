@@ -73,6 +73,9 @@ module Code0
 
           # Remove ALTER INDEX ... ATTACH PARTITION <schema>.<partition>;
           structure.gsub!(/^ALTER INDEX \S+ ATTACH PARTITION #{schema}\.\S+;\n/, '')
+
+          # Remove COMMENT ON TABLE <schema>.<partition> IS '<comment>';
+          structure.gsub!(/^COMMENT ON TABLE #{schema}\.\S+ IS .*;\n/, '')
         end
       end
     end
