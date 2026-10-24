@@ -9,10 +9,7 @@ module Code0
       config.zero_track.active_record.timestamps = false
       config.zero_track.active_record.schema_migrations = false
       config.zero_track.active_record.schema_cleaner = false
-
-      config.zero_track.db_partitioning = ActiveSupport::OrderedOptions.new
-      config.zero_track.db_partitioning.dynamic_partition_schema = 'partitions_dynamic'
-      config.zero_track.db_partitioning.base_ar_class = 'ActiveRecord::Base'
+      config.zero_track.active_record.schema_cleaner_callbacks = []
 
       rake_tasks do
         path = File.expand_path(__dir__)

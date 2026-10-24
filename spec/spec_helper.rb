@@ -10,6 +10,9 @@ require 'action_controller'
 require 'rspec/rails'
 
 require 'rails/all'
+
+require 'code0/zero_track/features/database_partitioning'
+
 require 'support/application'
 
 require 'rspec-parameterized'
