@@ -38,9 +38,9 @@ module Code0
             'CREATE EXTENSION IF NOT EXISTS \1;'
           )
 
-          # Remove dynamic partition objects that are managed automatically at runtime.
-          # These would cause schema drift on every partition rotation if left in the dump.
-          remove_dynamic_partitions!(structure)
+          Rails.application.config.zero_track.active_record.schema_cleaner_callbacks.each do |cleaner|
+            cleaner.clean!(structure)
+          end
 
           structure.gsub!(/\n{3,}/, "\n\n")
 
@@ -48,34 +48,6 @@ module Code0
           io << "\n"
 
           nil
-        end
-
-        private
-
-        def dynamic_partition_schema
-          Rails.application.config.zero_track.db_partitioning.dynamic_partition_schema
-        end
-
-        def remove_dynamic_partitions!(structure)
-          schema = Regexp.escape(dynamic_partition_schema)
-
-          # Remove CREATE TABLE <schema>.<partition> (...);
-          structure.gsub!(/^CREATE TABLE #{schema}\.\S+\s*\(.*?\);\n/m, '')
-
-          # Remove ALTER TABLE ... ATTACH PARTITION <schema>.<partition> ...;
-          structure.gsub!(/^ALTER TABLE .+ ATTACH PARTITION #{schema}\.\S+.*?;\n/, '')
-
-          # Remove ALTER TABLE ONLY <schema>.<partition> ...;
-          structure.gsub!(/^ALTER TABLE ONLY #{schema}\.\S+\n.*?;\n/m, '')
-
-          # Remove CREATE [UNIQUE] INDEX ... ON <schema>.<partition> ...;
-          structure.gsub!(/^CREATE (?:UNIQUE )?INDEX \S+ ON #{schema}\.\S+.*?;\n/m, '')
-
-          # Remove ALTER INDEX ... ATTACH PARTITION <schema>.<partition>;
-          structure.gsub!(/^ALTER INDEX \S+ ATTACH PARTITION #{schema}\.\S+;\n/, '')
-
-          # Remove COMMENT ON TABLE <schema>.<partition> IS '<comment>';
-          structure.gsub!(/^COMMENT ON TABLE #{schema}\.\S+ IS .*;\n/, '')
         end
       end
     end

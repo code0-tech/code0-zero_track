@@ -72,6 +72,21 @@ the `db/structure.sql`, this mode creates files in the `db/schema_migrations` di
 PostgreSQL supports declarative table partitioning. The partition manager automates the
 management of partitions without manual operations or extensions on the PostgreSQL server.
 
+Table partitioning is an optional feature which has to be explicitly required.
+There are multiple options to do this:
+
+1. Add the `require` above the application class definition in `config/application.rb`:
+
+   ```ruby
+   require 'code0/zero_track/features/database_partitioning'
+   ```
+
+2. Use the `require` option in the `Gemfile`
+
+   ```ruby
+   gem 'code0-zero_track', require: %w[code0/zero_track/features/database_partitioning]
+   ```
+
 #### Configuration
 
 ```ruby
@@ -82,31 +97,37 @@ config.zero_track.db_partitioning.base_ar_class = 'ActiveRecord::Base' # default
 - `dynamic_partition_schema`: The PostgreSQL schema where dynamic partitions are stored.
 - `base_ar_class`: The ActiveRecord base class used for the internal partitioning models.
 
+#### Schema and Views Setup
+
+The partition manager depends on a few PostgreSQL views.
+
+The migrations to create these views can be installed as following:
+
+```bash
+$ bin/rails code0_zero_track_database_partitioning:install:migrations
+$ bin/rails db:migrate
+```
+
 #### Migration Helpers
 
-Include the migration helpers by inheriting from `Code0::ZeroTrack::Database::Migration[1.0]` (or the
-appropriate version). The following methods become available:
+Include the migration helpers by inheriting from `Code0::ZeroTrack::Database::Migration[1.1]` (or the
+appropriate version). The following method becomes available:
 
 `create_partition_by_date_table(table_name, partition_column:, primary_key: nil, **options, &block)` creates a table
 partitioned by range on the given column. By default, it adds a `bigserial` id column and sets up a composite
 primary key of `(id, partition_column)`. If `primary_key` is provided (e.g. `primary_key: %i[date other_column]`),
 the id column is omitted and the given columns are used as the primary key instead.
 
-`create_dynamic_partition_schema` / `drop_dynamic_partition_schema` creates or drops the schema
-used for storing dynamic partitions.
-
-`create_partitioning_views` / `drop_partitioning_views` creates or drops the PostgreSQL views
-(`postgres_partitioned_tables`, `postgres_partitions`, `postgres_detached_partitions`) that the
-partition manager uses to inspect existing partitions.
+> The schema/view helpers `create_dynamic_partition_schema`, `drop_dynamic_partition_schema`,
+> `create_partitioning_views` and `drop_partitioning_views` have been removed in migration version 1.1.
+> The schema and views no longer have to be created in your own migration with these helpers and instead
+> are created by migrations from the gem.
 
 Example migration:
 
 ```ruby
-class CreatePartitionedEvents < Code0::ZeroTrack::Database::Migration[1.0]
+class CreatePartitionedEvents < Code0::ZeroTrack::Database::Migration[1.1]
   def change
-    create_dynamic_partition_schema
-    create_partitioning_views
-
     create_partition_by_date_table :events, partition_column: :created_at do |t|
       t.text :name, null: false
       t.timestamps_with_timezone null: false
@@ -114,8 +135,6 @@ class CreatePartitionedEvents < Code0::ZeroTrack::Database::Migration[1.0]
   end
 end
 ```
-
-The schema and views only need to be created once before creating the first partitioned table.
 
 Tables don't necessarily have to be created with the provided helper. The partition manager will
 work as long as the model is correctly configured.
