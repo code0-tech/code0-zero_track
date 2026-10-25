@@ -27,20 +27,21 @@ module Code0
             end
           end
 
-          def create_dynamic_partition_schema
-            schema = quote_table_name(Rails.application.config.zero_track.db_partitioning.dynamic_partition_schema)
-            execute "CREATE SCHEMA #{schema}"
-          end
+          module V1_0 # rubocop:disable Naming/ClassAndModuleCamelCase
+            def create_dynamic_partition_schema
+              schema = quote_table_name(Rails.application.config.zero_track.db_partitioning.dynamic_partition_schema)
+              execute "CREATE SCHEMA #{schema}"
+            end
 
-          def drop_dynamic_partition_schema
-            schema = quote_table_name(Rails.application.config.zero_track.db_partitioning.dynamic_partition_schema)
-            execute "DROP SCHEMA #{schema}"
-          end
+            def drop_dynamic_partition_schema
+              schema = quote_table_name(Rails.application.config.zero_track.db_partitioning.dynamic_partition_schema)
+              execute "DROP SCHEMA #{schema}"
+            end
 
-          def create_partitioning_views
-            dynamic_schema = Rails.application.config.zero_track.db_partitioning.dynamic_partition_schema
+            def create_partitioning_views
+              dynamic_schema = Rails.application.config.zero_track.db_partitioning.dynamic_partition_schema
 
-            execute <<-SQL.squish
+              execute <<-SQL.squish
               CREATE OR REPLACE VIEW postgres_partitioned_tables AS
               SELECT c.oid::regclass::text AS identifier,
                      c.oid,
@@ -56,9 +57,9 @@ module Code0
               JOIN pg_class c ON c.oid = p.partrelid
               JOIN pg_namespace n ON n.oid = c.relnamespace
               WHERE n.nspname = current_schema();
-            SQL
+              SQL
 
-            execute <<-SQL.squish
+              execute <<-SQL.squish
               CREATE OR REPLACE VIEW postgres_partitions AS
               SELECT c.oid::regclass::text AS identifier,
                      c.oid,
@@ -74,9 +75,9 @@ module Code0
               WHERE c.relispartition
                 AND c.relkind = 'r'
                 AND n.nspname IN (current_schema(), #{quote(dynamic_schema)});
-            SQL
+              SQL
 
-            execute <<-SQL.squish
+              execute <<-SQL.squish
               CREATE OR REPLACE VIEW postgres_detached_partitions AS
               SELECT c.oid::regclass::text AS identifier,
                      c.oid,
@@ -93,13 +94,14 @@ module Code0
                 )
                 AND obj_description(c.oid)::jsonb ? 'table'
                 AND obj_description(c.oid)::jsonb ? 'detached_at';
-            SQL
-          end
+              SQL
+            end
 
-          def drop_partitioning_views
-            execute 'DROP VIEW IF EXISTS postgres_detached_partitions'
-            execute 'DROP VIEW IF EXISTS postgres_partitions'
-            execute 'DROP VIEW IF EXISTS postgres_partitioned_tables'
+            def drop_partitioning_views
+              execute 'DROP VIEW IF EXISTS postgres_detached_partitions'
+              execute 'DROP VIEW IF EXISTS postgres_partitions'
+              execute 'DROP VIEW IF EXISTS postgres_partitioned_tables'
+            end
           end
         end
       end
