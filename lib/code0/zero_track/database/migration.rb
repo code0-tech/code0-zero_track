@@ -22,6 +22,7 @@ module Code0
           include Database::MigrationHelpers::RemoveColumnEnhancements
           include Database::MigrationHelpers::TableEnhancements
           include Database::MigrationHelpers::TablePartitioning
+          include Database::MigrationHelpers::PolymorphicTriggerHelpers
         end
         # rubocop:enable Naming/ClassAndModuleCamelCase
 
